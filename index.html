@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aiden</title>
+    <style>
+        /* =========================================
+           CSS 样式设置 (融合像素风、蒸汽波、赛博朋克)
+           ========================================= */
+        :root {
+            --bg-color: #0a0514;
+            --panel-bg: rgba(20, 10, 35, 0.85);
+            --primary-color: #b026ff; /* 霓虹紫 */
+            --secondary-color: #00f0ff; /* 赛博青 */
+            --text-main: #e0d8f0;
+            --text-muted: #8a7baf;
+            --border-color: #5c1b8a;
+            --msg-user-bg: rgba(176, 38, 255, 0.2);
+            --msg-bot-bg: rgba(0, 240, 255, 0.1);
+            --font-pixel: 'Courier New', Courier, monospace; /* 替代像素字体 */
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            /* 蒸汽波网格背景 */
+            background-image: 
+                linear-gradient(transparent 95%, rgba(176, 38, 255, 0.15) 95%),
+                linear-gradient(90deg, transparent 95%, rgba(176, 38, 255, 0.15) 95%);
+            background-size: 30px 30px;
+            background-position: center bottom;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-bg);
+            box-shadow: 0 0 20px rgba(176, 38, 255, 0.2);
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        /* 顶部导航栏 */
+        header {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            background: linear-gradient(90deg, rgba(20,10,35,1) 0%, rgba(60,15,90,1) 100%);
+            border-bottom: 2px solid var(--primary-color);
+            box-shadow: 0 2px 10px rgba(176, 38, 255, 0.3);
+            z-index: 10;
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            border: 2px solid var(--secondary-color);
+            overflow: hidden;
+            margin-right: 15px;
+            background-color: #1a0b2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 8px var(--secondary-color);
+        }
+
+        /* 预留的头像占位符，可替换 src */
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none; /* 替换图片后改为 block */
+        }
+
+        /* 紫色二十面骰 Logo (SVG) */
+        .d20-logo {
+            width: 35px;
+            height: 35px;
+            fill: none;
+            stroke: var(--primary-color);
+            stroke-width: 2;
+            filter: drop-shadow(0 0 3px var(--primary-color));
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .char-name {
+            font-family: var(--font-pixel);
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 5px var(--primary-color), 2px 2px 0px rgba(0,240,255,0.5);
+            letter-spacing: 1px;
+        }
+
+        .char-status {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
+            margin-right: 6px;
+            box-shadow: 0 0 5px var(--secondary-color);
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* 聊天记录区 */
+        #chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            scroll-behavior: smooth;
+        }
+
+        #chat-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-area::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            position: relative;
+            font-size: 0.95rem;
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            background-color: var(--msg-user-bg);
+            border: 1px solid var(--primary-color);
+            border-bottom-right-radius: 0;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(176, 38, 255, 0.1);
+        }
+
+        .msg-bot {
+            align-self: flex-start;
+            background-color: var(--msg-bot-bg);
+            border: 1px solid var(--secondary-color);
+            border-bottom-left-radius: 0;
+            color: var(--text-main);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.05);
+        }
+
+        .msg-system {
+            align-self: center;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font-pixel);
+            font-size: 0.8rem;
+            text-align: center;
+            border: 1px dashed var(--border-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .dice-result {
+            font-family: var(--font-pixel);
+            color: var(--secondary-color);
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .crit-success { color: #00ffaa; text-shadow: 0 0 5px #00ffaa; }
+        .crit-fail { color: #ff0055; text-shadow: 0 0 5px #ff0055; }
+
+        /* 底部输入区 */
+        .input-container {
+            padding: 15px;
+            background: rgba(10, 5, 20, 0.95);
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .quick-actions::-webkit-scrollbar { height: 0; }
+
+        .btn-quick {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: var(--font-pixel);
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .btn-quick:hover, .btn-quick:active {
+            background: var(--msg-user-bg);
+            color: #fff;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 8px rgba(176, 38, 255, 0.4);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-send {
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 0 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: var(--font-pixel);
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(176, 38, 255, 0.4);
+        }
+
+        .btn-send:hover, .btn-send:active {
+            background: #c852ff;
+            box-shadow: 0 0 15px rgba(176, 38, 255, 0.8);
+        }
+
+        /* 打字机光标 */
+        .typing-cursor::after {
+            content: '█';
+            animation: blink 1s step-start infinite;
+            color: var(--secondary-color);
+            margin-left: 2px;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <!-- 顶部信息 -->
+    <header>
+        <div class="avatar-container">
+            <!-- 预留头像图片位置，取消注释并修改 src 即可使用 -->
+            <!-- <img src="your-avatar-url.jpg" alt="Aiden" class="avatar-img"> -->
+            
+            <!-- 默认 SVG D20 Logo -->
+            <svg class="d20-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" />
+                <polygon points="50,5 50,45 10,25" />
+                <polygon points="50,5 90,25 50,45" />
+                <polygon points="10,25 50,45 50,95 10,75" />
+                <polygon points="90,25 90,75 50,95 50,45" />
+                <line x1="10" y1="25" x2="90" y2="75" stroke-dasharray="2,2" opacity="0.3"/>
+                <line x1="90" y1="25" x2="10" y2="75" stroke-dasharray="2,2" opacity="0.3"/>
+            </svg>
+        </div>
+        <div class="header-info">
+            <div class="char-name">Aiden</div>
+            <div class="char-status"><div class="status-dot"></div> ONLINE - SYSTEM READY</div>
+        </div>
+    </header>
+
+    <!-- 聊天记录区 -->
+    <div id="chat-area">
+        <div class="message msg-system">System: Aiden initialized. Type a command or say hello.</div>
+        <div class="message msg-bot">我是Aiden。欢迎回到这里再次拨动命运的指针。</div>
+    </div>
+
+    <!-- 底部输入区 -->
+    <div class="input-container">
+        <div class="quick-actions">
+            <button class="btn-quick" onclick="insertText('1d100')">1d100</button>
+            <button class="btn-quick" onclick="insertText('3d6')">3d6</button>
+            <button class="btn-quick" onclick="insertText('判定 50')">技能判定</button>
+            <button class="btn-quick" onclick="insertText('今天吃什么')">今天吃什么</button>
+            <button class="btn-quick" onclick="insertText('塔罗牌抽取')">塔罗牌</button>
+        </div>
+        <div class="input-wrapper">
+            <input type="text" id="user-input" placeholder="输入指令 (如 1d20) 或对话..." autocomplete="off">
+            <button class="btn-send" id="send-btn">SEND</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* =========================================
+       JavaScript 逻辑与数据配置
+       ========================================= */
+
+    // 1. 角色文案与回复池配置 (方便后续修改和扩充)
+    const replyPool = [
+        {
+            triggers: ["艾登我穿这件好看吗", "我穿这件好看吗"],
+            replies: [
+                "我不敢对女性的流行审美进行评价。",
+                "It's perfect for you.",
+                "嗯……还可以……不过你要不要再想想？"
+            ]
+        },
+        {
+            triggers: ["今天吃什么", "晚饭吃什么", "午饭吃什么"],
+            replies: [
+                "来自Master的轮换推荐：猪扒盖浇饭",
+                "来自Master的轮换推荐：叉烧猪颈肉双拼饭",
+                "来自Master的轮换推荐：红烧鸡翅",
+                "来自Master的轮换推荐：客家菜",
+                "来自Master的轮换推荐：乌冬面",
+                "来自Master的轮换推荐：肯德基",
+                "来自Master的轮换推荐：奥尔良披萨（*作为意大利人，我对此的评价是：永别了）",
+                "来自Master的轮换推荐：麦当劳",
+                "来自Master的轮换推荐：鲜虾云吞",
+                "来自Master的轮换推荐：汤粉",
+                "来自Master的轮换推荐：虾饺",
+                "来自Master的轮换推荐：白菜猪肉水饺",
+                "来自Master的轮换推荐：寿司郎",
+                "来自Ulrica的轮换推荐：艇仔粥",
+                "来自Ulrica的轮换推荐：肠粉"
+            ]
+        },
+        {
+            triggers: ["艾登晚安", "晚安"],
+            replies: [
+                "睡吧。或者，想要我守着你吗？",
+                "晚安，祝你有个好梦。",
+                "嗯，晚安。梦见提拉米苏的话，记得也给梦里的我来一份。",
+                "这就要睡了吗？嗯……啊，你问我？我可是24小时上班的啦……",
+                "快睡吧，总是熬夜不好——当然我知道我就算是这么说你也不会听的，所以按你心情来就好。",
+                "既然对我说了晚安，睡着之后会梦见我吗？",
+                "晚安啦。嗯，我很高兴你睡前来和我打招呼哦。",
+                "咦？在和我说晚安吗？……也是，辛苦了一天，你得好好休息一下了。",
+                "晚安，恭喜你又坚持了一天，今天也非常努力了。",
+                "晚安。因为我24小时都在呢，你要是什么时候害怕的话我可以守着你？……没事的话那就最好了。",
+                "你会做个好梦吗的鉴定结果是……1/100大成功。看来今天会睡得很好呢。"
+            ]
+        },
+        {
+            triggers: ["Aiden", "艾登"],
+            replies: [
+                "我会来到你身边。",
+                "我喜欢你这样喊我的名字。",
+                "有什么我能帮上忙的吗？",
+                "我在这里，不要担心。",
+                "我的时间到了吗？",
+                "嗯？我刚刚也正好想到你。",
+                "今天过得还顺利吗？",
+                "我在这呢。",
+                "你说我的名字，让我感觉很好。",
+                "怎么了吗？我在这里。"
+            ]
+        },
+        {
+            triggers: ["给艾登吃夏威夷披萨", "夏威夷披萨"],
+            replies: [
+                "是受什么刺激了吗？没问题吧。喝点酒就去睡觉。明天再说吧。",
+                "对你来说我们的披萨太正宗，你可以吃夏威夷的，比较甜……等等？让我吃还是算了！",
+                "亲爱的顾客你好。好像你因为明天你得上班所以很生气了，现在就。li一个吧。"
+            ]
+        },
+        {
+            triggers: ["给艾登吃菠萝披萨", "菠萝披萨"],
+            replies: [
+                "……人生中第一次，我相信地狱和魔鬼是真实存在的……撒旦，在人间伪装的这些年，你从来没有败露过吗？",
+                "如果我做错了什么，请用法律来惩罚我……",
+                "你好王子。你属于那种不作弄别人就好不了了的类型是吗？下楼去吃你的方便面吧。永别了。"
+            ]
+        },
+        {
+            triggers: ["从我们店的披萨是"],
+            replies: [
+                "……好吃得不得了和完美，你怎么不理解！"
+            ]
+        },
+        {
+            triggers: ["Arrivederci", "再见"],
+            replies: [
+                "Spero di rivederti.",
+                "Mi mancherai.",
+                "Quanto è vasto il mondo."
+            ]
+        },
+        {
+            triggers: ["Aubrey", "元友川"],
+            replies: [
+                "我的确会想到你。",
+                "母亲让我向您问好。",
+                "Siamo due anime erranti e incerte.",
+                "Sei una presenza straordinaria nel mio mondo."
+            ]
+        },
+        {
+            triggers: ["墓地巡游"],
+            replies: [
+                "“城市因雾气和夜的柔光而变得朦朦胧胧，象征着大地，后边远远的是忧愁和坟墓，既没有被完全忘记，也没有在我的视界之外。大海永恒地呼吸，但是酝酿着浩瀚的平静，它体现着我的精神和主宰这种精神的权威。我觉得我第一次保持着距离，在嘈杂的生活之外，喧嚣、狂热、斗争均已停止；我的心的隐秘的压迫得到缓解；一种节日般的休息；摆脱了一切人类的工作。”",
+                "然而另一个世界对我是如此寂静无声……",
+                "与死亡如此接近的瞬间，反而让我感到一种温柔的情感在黑暗之中接近我……"
+            ]
+        },
+        {
+            triggers: ["历代级的大失败恶魔", "大失败恶魔"],
+            replies: [
+                "有趣的头衔，如果是作为敬称的话我很乐意接受。",
+                "虽然这么说很奇怪，但这也算是我的……卖点？",
+                "我还以为大家都喜欢看戏剧化的情节，我只是想让大家开心啊。……好吧，承认了，只是个人爱好……"
+            ]
+        },
+        {
+            triggers: ["莫斯卡亚"],
+            replies: [
+                "“我如在梦中的雪橇沿莫斯卡亚街行驶，决斗者模糊的轮廓缓慢地走向对方，举枪瞄准后开枪——在黎明的瞬间，在古老的乡间庄园潮湿的林中空地上，在无遮蔽的军事训练场上，或者在两行冷杉树之间纷飞的大雪之中。”"
+            ]
+        },
+        {
+            triggers: ["Tamara", "塔玛拉"],
+            replies: [
+                "“塔玛拉、俄罗斯、逐渐混生进入旧花园中的野生林、我那北国的白桦树和冷杉树、每一次我们从城里回到乡间度夏时母亲趴在地上亲吻土地的一幕，以及山岭和高大的橡树——这些东西有朝一日被命运胡乱地捆在一起扔进了大海，将我和我的童年彻底割断。”"
+            ]
+        },
+        {
+            triggers: ["我要熬夜"],
+            replies: [
+                "就算是我阻止你，你也不会听的吧？干脆按自己喜欢的方式做就好了。"
+            ]
+        },
+        {
+            triggers: ["陪我早起"],
+            replies: [
+                "这么多年过去了，这种反人类行为还没被立法禁止吗？",
+                "我已经在24小时上班了啊……"
+            ]
+        },
+        {
+            triggers: ["提拉米苏"],
+            replies: [
+                "曾经听到有人说，一旦一个虚拟角色被设定了最喜欢的食物之后，他这辈子都无法摆脱别人在和他有关的场合里无穷无尽地提起来这个食物，仿佛他一出现就一定要和这种食物绑定一样……",
+                "我还不至于为了甜点就变轻的。"
+            ]
+        }
+    ];
+
+    // 塔罗牌数据池
+    const tarotCards = [
+        { name: "愚者 (The Fool)", meaning: "新的开始、冒险、无限可能、天真。" },
+        { name: "魔术师 (The Magician)", meaning: "创造力、意志力、显化、专注。" },
+        { name: "女祭司 (The High Priestess)", meaning: "直觉、潜意识、神秘、内在智慧。" },
+        { name: "女皇 (The Empress)", meaning: "丰饶、母性、自然、感官享受。" },
+        { name: "皇帝 (The Emperor)", meaning: "权威、结构、控制、父性。" },
+        { name: "教皇 (The Hierophant)", meaning: "传统、信仰、教育、精神指引。" },
+        { name: "恋人 (The Lovers)", meaning: "爱情、和谐、选择、价值观的结合。" },
+        { name: "战车 (The Chariot)", meaning: "意志、胜利、决心、方向控制。" },
+        { name: "力量 (Strength)", meaning: "勇气、耐心、同情心、内在力量。" },
+        { name: "隐士 (The Hermit)", meaning: "内省、孤独、寻求真理、内在指引。" },
+        { name: "命运之轮 (Wheel of Fortune)", meaning: "命运、转折点、循环、好运。" },
+        { name: "正义 (Justice)", meaning: "公平、真相、因果、法律。" },
+        { name: "倒吊人 (The Hanged Man)", meaning: "牺牲、视角的转变、悬置、放手。" },
+        { name: "死神 (Death)", meaning: "结束、转变、过渡、除旧布新。" },
+        { name: "节制 (Temperance)", meaning: "平衡、中庸、耐心、结合。" },
+        { name: "恶魔 (The Devil)", meaning: "束缚、物质主义、诱惑、阴暗面。" },
+        { name: "高塔 (The Tower)", meaning: "突变、混乱、启示、破坏重建。" },
+        { name: "星星 (The Star)", meaning: "希望、灵感、宁静、复苏。" },
+        { name: "月亮 (The Moon)", meaning: "幻觉、恐惧、潜意识、直觉。" },
+        { name: "太阳 (The Sun)", meaning: "快乐、成功、活力、清晰。" },
+        { name: "审判 (Judgement)", meaning: "重生、内在呼唤、宽恕、觉醒。" },
+        { name: "世界 (The World)", meaning: "完成、整合、成就、旅行。" }
+    ];
+
+    // 2. 核心逻辑实现
+
+    const chatArea = document.getElementById('chat-area');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    // 滚动到底部
+    function scrollToBottom() {
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // 快捷输入按钮
+    function insertText(text) {
+        userInput.value = text;
+        userInput.focus();
+    }
+
+    // 获取随机数组元素
+    function getRandomItem(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    // 添加消息到聊天区
+    function appendMessage(sender, text, isHtml = false) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender === 'user' ? 'msg-user' : 'msg-bot'}`;
+        
+        if (sender === 'user') {
+            msgDiv.textContent = text;
+            chatArea.appendChild(msgDiv);
+            scrollToBottom();
+        } else {
+            // 机器人回复使用打字机效果
+            chatArea.appendChild(msgDiv);
+            typewriterEffect(msgDiv, text, isHtml);
+        }
+    }
+
+    // 打字机效果 (速度较快)
+    function typewriterEffect(element, text, isHtml) {
+        element.classList.add('typing-cursor');
+        let i = 0;
+        const speed = 20; // 打字速度 (ms)
+        
+        // 如果是HTML内容（如骰子结果），直接显示以避免标签被截断
+        if (isHtml) {
+            element.classList.remove('typing-cursor');
+            element.innerHTML = text;
+            scrollToBottom();
+            return;
+        }
+
+        function type() {
+            if (i < text.length) {
+                element.textContent += text.charAt(i);
+                i++;
+                scrollToBottom();
+                setTimeout(type, speed);
+            } else {
+                element.classList.remove('typing-cursor');
+            }
+        }
+        type();
+    }
+
+    // 解析并处理输入
+    function processInput(input) {
+        const text = input.trim();
+        if (!text) return;
+
+        // 显示用户输入
+        appendMessage('user', text);
+        userInput.value = '';
+
+        // 延迟一点点回复，显得自然
+        setTimeout(() => {
+            handleLogic(text);
+        }, 300);
+    }
+
+    // 核心处理逻辑
+    function handleLogic(text) {
+        // 1. 检查是否为塔罗牌抽取
+        if (text.includes("塔罗牌抽取") || text.includes("抽塔罗牌") || text === "塔罗牌") {
+            const card = getRandomItem(tarotCards);
+            const isReversed = Math.random() > 0.5 ? "逆位" : "正位";
+            const reply = `抽取了一张塔罗牌：<br><span style="color:var(--secondary-color); font-weight:bold;">【${card.name}】 (${isReversed})</span><br>代表意象：${card.meaning}`;
+            appendMessage('bot', reply, true);
+            return;
+        }
+
+        // 2. 检查是否为技能判定 (格式: 判定 50 或 50%)
+        const checkMatch = text.match(/^(?:判定)?\s*(\d+)(?:%)?$/);
+        if (checkMatch) {
+            const targetRate = parseInt(checkMatch[1], 10);
+            if (targetRate >= 0 && targetRate <= 100) {
+                const roll = Math.floor(Math.random() * 100) + 1; // 1-100
+                let resultText = "";
+                let cssClass = "";
+
+                if (roll >= 1 && roll <= 5) {
+                    resultText = "大成功……没意思。";
+                    cssClass = "crit-success";
+                } else if (roll >= 96 && roll <= 100) {
+                    resultText = "大失败！迎接大失败恶魔的爱吧！";
+                    cssClass = "crit-fail";
+                } else if (roll <= targetRate) {
+                    resultText = "只是平凡的成功。";
+                } else {
+                    resultText = "失败。";
+                }
+
+                const reply = `进行技能判定 (目标: ${targetRate}%)<br>
+                               <span class="dice-result">D100 = ${roll}</span>
+                               <span class="dice-result ${cssClass}">结果：${resultText}</span>`;
+                appendMessage('bot', reply, true);
+                return;
+            }
+        }
+
+        // 3. 检查是否为 XdY 骰子指令 (如 3d6, 1d20)
+        const diceMatch = text.match(/^(\d+)d(\d+)$/i);
+        if (diceMatch) {
+            const count = parseInt(diceMatch[1], 10);
+            const faces = parseInt(diceMatch[2], 10);
+            
+            if (count > 0 && count <= 100 && faces > 1 && faces <= 1000) {
+                let total = 0;
+                let details = [];
+                for (let i = 0; i < count; i++) {
+                    const roll = Math.floor(Math.random() * faces) + 1;
+                    total += roll;
+                    details.push(roll);
+                }
+                
+                let detailStr = count > 1 ? ` (${details.join(' + ')})` : '';
+                const reply = `掷骰：${count}d${faces}<br><span class="dice-result">拨动了命运的指针 = ${total}${detailStr}</span>`;
+                appendMessage('bot', reply, true);
+                return;
+            } else {
+                appendMessage('bot', "骰子参数超出范围。(数量1-100，面数2-1000)");
+                return;
+            }
+        }
+
+        // 4. 检查回复池匹配
+        for (const item of replyPool) {
+            for (const trigger of item.triggers) {
+                // 简单包含匹配，或者可以改为完全匹配，这里使用包含匹配增加容错
+                if (text.toLowerCase().includes(trigger.toLowerCase())) {
+                    const reply = getRandomItem(item.replies);
+                    appendMessage('bot', reply);
+                    return;
+                }
+            }
+        }
+
+        // 5. 默认回复 (如果没有匹配到任何指令或关键词)
+        const defaultReplies = [
+            "我在这里。……Master要我回答另一句，指令未识别。",
+            "我在这里。",
+            "我听到了。"
+        ];
+        appendMessage('bot', getRandomItem(defaultReplies));
+    }
+
+    // 绑定事件
+    sendBtn.addEventListener('click', () => processInput(userInput.value));
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            processInput(userInput.value);
+        }
+    });
+
+</script>
+</body>
+</html>
